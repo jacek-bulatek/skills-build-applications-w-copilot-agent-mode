@@ -28,22 +28,23 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 ## Implementation decisions
 
-Record your plan here before editing code.
-
-- Presentation tier decision:
-- Logic tier decision:
-- Data tier decision:
-- Activity tracking approach:
-- Team management approach:
-- Leaderboard approach:
-- Workout suggestions approach:
+- Presentation tier decision: Keep the React app thin and view-focused. The UI should render loading, empty, success, and error states from the shared API client and should not contain business logic or hard-coded data assumptions.
+- Logic tier decision: Implement API behavior in Express routes and dedicated service functions, with explicit 4xx handling for invalid IDs, missing names, and unknown users. Validation errors should be deliberate, not cast errors leaking as 500 responses.
+- Data tier decision: Enforce required schema fields in Mongoose models and keep the seed script idempotent via upserts. Stable seeded users, teams, and activities are foundational to the API and leaderboard contract.
+- Activity tracking approach: Accept `userId`, `teamId`, `type`, and `minutes`, then resolve the user/team references and compute `points` and `occurredAt` before saving. Reject malformed IDs with a deliberate 4xx to avoid Mongo cast errors.
+- Team management approach: Require a non-empty `name` and keep `mascot` plus `members` consistent with the seeded team records. Expose members in API responses so the frontend can render team membership without additional derivation.
+- Leaderboard approach: Aggregate activity points by team, sort descending by total points, and assign 1-based ranking in the response. This keeps the endpoint deterministic and easy for the frontend to render.
+- Workout suggestions approach: Match a user’s email to seeded data and derive recommendations from that user’s recent focus or goal, returning suggestions with a matching `focus`, a clear `reason`, and a recommended duration/difficulty that beats the default generic fallback.
 
 ## Test plan
 
 Record the commands you run and what each failure means.
 
-- Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
-- API command: `npm run test:api --prefix octofit-tracker/backend`
-- Frontend command: `npm test --prefix octofit-tracker/frontend`
+- Data-tier command: `npm run test:data --prefix octofit-tracker/backend`  
+  Current result: 4 schema validation tests fail because required Mongoose fields are not enforced yet. This is the first layer to fix.
+- API command: `npm run test:api --prefix octofit-tracker/backend`  
+  Current result: invalid inputs return `501` instead of a deliberate `400`, the leaderboard is empty, and workout recommendations do not match seeded activity patterns. This confirms the route/service logic layer is still incomplete.
+- Frontend command: `npm test --prefix octofit-tracker/frontend`  
+  This is the correct project command; `--runInBand` is not supported by the Vitest version in this repo and should not be used. Frontend checks should be run after the backend contract is green.
 - Backend build command: `npm run build --prefix octofit-tracker/backend`
 - Frontend build command: `npm run build --prefix octofit-tracker/frontend`
